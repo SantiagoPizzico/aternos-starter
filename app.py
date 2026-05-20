@@ -5,14 +5,18 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-ATERNOS_USER = os.environ.get("ATERNOS_USER", "")
-ATERNOS_PASS = os.environ.get("ATERNOS_PASS", "")
-SECRET_TOKEN = os.environ.get("SECRET_TOKEN", "changeme")
+ATERNOS_USER    = os.environ.get("ATERNOS_USER", "")
+ATERNOS_PASS    = os.environ.get("ATERNOS_PASS", "")
+ATERNOS_SESSION = os.environ.get("ATERNOS_SESSION", "")
+SECRET_TOKEN    = os.environ.get("SECRET_TOKEN", "changeme")
 
 
 def get_server():
     from python_aternos import Client
-    at = Client.from_credentials(ATERNOS_USER, ATERNOS_PASS)
+    if ATERNOS_SESSION:
+        at = Client.from_session(ATERNOS_SESSION)
+    else:
+        at = Client.from_credentials(ATERNOS_USER, ATERNOS_PASS)
     servers = at.list_servers()
     if not servers:
         raise Exception("No se encontró ningún servidor en la cuenta")
