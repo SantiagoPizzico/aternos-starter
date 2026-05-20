@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🟩 Minecraft Server</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+    :root {
+      --green: #3aff6c;
+      --green-dim: #1a7a35;
+      --red: #ff4444;
+      --yellow: #ffd700;
+      --bg: #0a0f0a;
+      --card: #111811;
+      --border: #1e3020;
+      --text: #c8e6c9;
+      --muted: #4a7a4e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      overflow-x: hidden;
+    }
+
+    /* Grid de fondo tipo terminal */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(58,255,108,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(58,255,108,0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    .title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(14px, 4vw, 22px);
+      color: var(--green);
+      text-align: center;
+      margin-bottom: 0.4rem;
+      text-shadow: 0 0 20px rgba(58,255,108,0.4);
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 2.5rem;
+      letter-spacing: 1px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, rgba(58,255,108,0.15), transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Indicador de estado */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(0,0,0,0.4);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .dot.online  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    .dot.offline { background: var(--red); }
+    .dot.starting{ background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+    .status-value {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+      margin-left: auto;
+      letter-spacing: 1px;
+    }
+
+    /* Botón principal */
+    .btn-start {
+      width: 100%;
+      padding: 1.1rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      color: #000;
+      background: var(--green);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-start:hover:not(:disabled) {
+      background: #5cff86;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(58,255,108,0.35);
+    }
+
+    .btn-start:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-start:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Log output */
+    .log {
+      margin-top: 1.25rem;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 48px;
+      max-height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-line { display: flex; gap: 8px; }
+    .log-time { color: #2a4a2e; flex-shrink: 0; }
+    .log-msg.ok     { color: var(--green); }
+    .log-msg.err    { color: var(--red); }
+    .log-msg.warn   { color: var(--yellow); }
+    .log-msg.info   { color: var(--text); }
+
+    /* Token input */
+    .token-row {
+      margin-bottom: 1.25rem;
+    }
+    .token-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .token-input {
+      width: 100%;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .token-input:focus {
+      border-color: var(--green-dim);
+    }
+
+    .footer {
+      margin-top: 2rem;
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 1px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="title">⬛ MINECRAFT</div>
+  <div class="subtitle">SERVER PANEL — SOLO PARA EL SQUAD</div>
+
+  <div class="card">
+
+    <div class="status-row">
+      <div class="dot" id="dot"></div>
+      <span class="status-label">ESTADO</span>
+      <span class="status-value" id="status-text">cargando...</span>
+    </div>
+
+    <div class="token-row">
+      <label class="token-label" for="token">TOKEN DE ACCESO</label>
+      <input
+        class="token-input"
+        type="password"
+        id="token"
+        placeholder="contraseña del squad..."
+        autocomplete="off"
+      />
+    </div>
+
+    <button class="btn-start" id="btn-start" onclick="startServer()">
+      ▶ INICIAR SERVIDOR
+    </button>
+
+    <div class="log" id="log">
+      <div class="log-line">
+        <span class="log-time">--:--:--</span>
+        <span class="log-msg info">Panel listo. Ingresá el token y dale start.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">aternos • playwright • solo 6 amigos</div>
+
+  <script>
+    // ⚙️ CAMBIAR ESTA URL por la URL de tu backend en Railway/Render
+    const BACKEND_URL = "https://aternos-starter-z1w7.onrender.com";
+
+    function now() {
+      return new Date().toLocaleTimeString('es-AR', { hour12: false });
+    }
+
+    function addLog(msg, type = "info") {
+      const log = document.getElementById("log");
+      const line = document.createElement("div");
+      line.className = "log-line";
+      line.innerHTML = `<span class="log-time">${now()}</span><span class="log-msg ${type}">${msg}</span>`;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setStatus(status) {
+      const dot = document.getElementById("dot");
+      const label = document.getElementById("status-text");
+      dot.className = "dot";
+
+      const map = {
+        online:   { cls: "online",   text: "ONLINE 🟩" },
+        offline:  { cls: "offline",  text: "OFFLINE 🔴" },
+        starting: { cls: "starting", text: "INICIANDO ⏳" },
+        loading:  { cls: "starting", text: "CARGANDO ⏳" },
+        stopping: { cls: "offline",  text: "APAGANDO..." },
+        unknown:  { cls: "",         text: "DESCONOCIDO" },
+        error:    { cls: "offline",  text: "ERROR" },
+      };
+
+      const s = map[status] || map["unknown"];
+      dot.classList.add(s.cls);
+      label.textContent = s.text;
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/status`);
+        const data = await res.json();
+        setStatus(data.status);
+      } catch {
+        setStatus("error");
+      }
+    }
+
+    async function startServer() {
+      const token = document.getElementById("token").value.trim();
+      if (!token) {
+        addLog("Ingresá el token primero.", "warn");
+        return;
+      }
+
+      const btn = document.getElementById("btn-start");
+      btn.disabled = true;
+      btn.textContent = "⏳ CONECTANDO...";
+      addLog("Conectando con el backend...", "info");
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/start`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Token": token
+          },
+          body: JSON.stringify({ token })
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          addLog(data.message, "ok");
+          setStatus(data.status || "starting");
+          addLog("Revisá en Aternos, puede tardar 2-3 min.", "info");
+        } else {
+          addLog(`Error: ${data.message}`, "err");
+          if (res.status === 401) addLog("Token incorrecto.", "warn");
+        }
+      } catch (e) {
+        addLog("No se pudo conectar al backend.", "err");
+        addLog("¿Está corriendo en Railway?", "warn");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "▶ INICIAR SERVIDOR";
+      }
+    }
+
+    // Verificar estado al cargar y cada 30 segundos
+    fetchStatus();
+    setInterval(fetchStatus, 30000);
+
+    // Enter en el input también inicia
+    document.getElementById("token").addEventListener("keydown", e => {
+      if (e.key === "Enter") startServer();
+    });
+  </script>
+
+</body>
+</html>
