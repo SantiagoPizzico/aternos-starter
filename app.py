@@ -28,15 +28,18 @@ def get_server_info():
         raise Exception("No se encontró ningún servidor")
     return servers[0]
 
-def get_token():
-    r = requests.get(f"{BASE}/server/", headers=get_headers(), timeout=15)
-    for line in r.text.splitlines():
-        if "aternos.token" in line or "TOKEN" in line:
-            import re
-            match = re.search(r"['\"]([a-f0-9]{8,})['\"]", line)
-            if match:
-                return match.group(1)
-    return ""
+
+@app.route("/debug")
+def debug():
+    try:
+        r = requests.get(f"{BASE}/panel/ajax/account.php", headers=get_headers(), timeout=15)
+        return jsonify({
+            "status_code": r.status_code,
+            "content_type": r.headers.get("content-type", ""),
+            "body_preview": r.text[:500],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 
 @app.route("/status")
@@ -59,7 +62,36 @@ def start():
         return jsonify({"ok": False, "message": "Token inválido"}), 401
     try:
         serv = get_server_info()
-        status = serv.get("status", "")
+        stat = serv.get("status", "")
+        if stat == "online":
+            return jsonify({"ok": True, "message": "El servidor ya estaba online", "status": "online"})
+        if stat in ("starting", "loading", "preparing"):
+            return jsonify({"ok": True, "message": "El servidor ya está iniciando", "status": stat})
+
+        headers = get_headers()
+        r = requests.get(
+            f"{BASE}/panel/ajax/start.php",
+            params={"headstart": 0, "access-credits": 0},
+            headers=headers,
+            timeout=15
+        )
+        if r.status_code == 200:
+            return jsonify({"ok": True, "message": "Servidor iniciando... puede tardar 2-3 minutos", "status": "starting"})
+        else:
+            return jsonify({"ok": False, "message": f"Aternos respondió {r.status_code}: {r.text[:200]}", "status": "error"})
+
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e), "status": "error"})
+
+
+@app.route("/health")
+def health():
+    return jsonify({"ok": True})
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
         if status == "online":
             return jsonify({"ok": True, "message": "El servidor ya estaba online", "status": "online"})
         if status in ("starting", "loading", "preparing"):
